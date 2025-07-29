@@ -279,6 +279,13 @@ def test_coth_series():
         1/x + x/3 - x**3/45 + 2*x**5/945 - x**7/4725 + O(x**8)
 
 
+def test_coth_log_tan_subs():
+    x = Symbol('x')
+    e = coth(log(tan(x)))
+    assert e.subs(x, 2) == coth(log(-tan(2)))
+    assert e.subs(x, 3) == coth(log(-tan(3)))
+
+
 def test_csch():
     x, y = symbols('x,y')
 
