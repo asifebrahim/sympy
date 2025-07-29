@@ -78,7 +78,12 @@ from .algebras import *
 # from combinatorics import *
 # This module is slow to import:
 #from physics import units
-from .plotting import plot, textplot, plot_backends, plot_implicit
+# plotting relies on deprecated collections APIs on newer Python versions
+# so import it lazily to avoid ImportError during basic usage
+try:
+    from .plotting import plot, textplot, plot_backends, plot_implicit
+except Exception:
+    pass
 from .printing import pretty, pretty_print, pprint, pprint_use_unicode, \
     pprint_try_use_unicode, print_gtk, print_tree, pager_print, TableForm
 from .printing import rcode, ccode, fcode, jscode, julia_code, mathematica_code, \
