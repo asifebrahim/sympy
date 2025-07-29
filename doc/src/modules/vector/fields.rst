@@ -8,7 +8,7 @@ Implementation in sympy.vector
 Scalar and vector fields
 ------------------------
 
-In :mod:`sympy.vector`, every ``CoordSysCartesian`` instance is assigned basis
+In :mod:`sympy.vector`, every ``CoordSys3D`` instance is assigned basis
 vectors corresponding to the :math:`X`, :math:`Y` and
 :math:`Z` axes. These can be accessed using the properties
 named ``i``, ``j`` and ``k`` respectively. Hence, to define a vector
@@ -269,7 +269,7 @@ system all we need to do is to create proper coordinate system
   >>> from sympy.vector import CoordSys3D
   >>> c = CoordSys3D('c', transformation='cylindrical', variable_names=("r", "theta", "z"))
   >>> gradient(c.r*c.theta*c.z)
-      c.theta*c.z*c.i + c.r*c.z/c.theta*c.j + c.r*c.theta*c.k
+      c.theta*c.z*c.i + c.z*c.j + c.r*c.theta*c.k
 
 Conservative and Solenoidal fields
 ==================================

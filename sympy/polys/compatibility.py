@@ -1,6 +1,14 @@
 """Compatibility interface between dense and sparse polys. """
 
-from __future__ import print_function, division
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sympy.core.expr import Expr
+    from sympy.polys.domains.domain import Domain
+    from sympy.polys.orderings import MonomialOrder
+    from sympy.polys.rings import PolyElement
 
 from sympy.polys.densearith import dup_add_term
 from sympy.polys.densearith import dmp_add_term
@@ -62,6 +70,8 @@ from sympy.polys.densearith import dup_max_norm
 from sympy.polys.densearith import dmp_max_norm
 from sympy.polys.densearith import dup_l1_norm
 from sympy.polys.densearith import dmp_l1_norm
+from sympy.polys.densearith import dup_l2_norm_squared
+from sympy.polys.densearith import dmp_l2_norm_squared
 from sympy.polys.densearith import dup_expand
 from sympy.polys.densearith import dmp_expand
 from sympy.polys.densebasic import dup_LC
@@ -100,6 +110,7 @@ from sympy.polys.densetools import dup_real_imag
 from sympy.polys.densetools import dup_mirror
 from sympy.polys.densetools import dup_scale
 from sympy.polys.densetools import dup_shift
+from sympy.polys.densetools import dmp_shift
 from sympy.polys.densetools import dup_transform
 from sympy.polys.densetools import dup_compose
 from sympy.polys.densetools import dmp_compose
@@ -174,6 +185,10 @@ from sympy.polys.factortools import dmp_zz_diophantine
 from sympy.polys.factortools import dmp_zz_wang_hensel_lifting
 from sympy.polys.factortools import dmp_zz_wang
 from sympy.polys.factortools import dmp_zz_factor
+from sympy.polys.factortools import dup_qq_i_factor
+from sympy.polys.factortools import dup_zz_i_factor
+from sympy.polys.factortools import dmp_qq_i_factor
+from sympy.polys.factortools import dmp_zz_i_factor
 from sympy.polys.factortools import dup_ext_factor
 from sympy.polys.factortools import dmp_ext_factor
 from sympy.polys.factortools import dup_gf_factor
@@ -204,9 +219,10 @@ from sympy.polys.rootisolation import dup_isolate_all_roots_sqf
 from sympy.polys.rootisolation import dup_isolate_all_roots
 
 from sympy.polys.sqfreetools import (
-    dup_sqf_p, dmp_sqf_p, dup_sqf_norm, dmp_sqf_norm, dup_gf_sqf_part, dmp_gf_sqf_part,
-    dup_sqf_part, dmp_sqf_part, dup_gf_sqf_list, dmp_gf_sqf_list, dup_sqf_list,
-    dup_sqf_list_include, dmp_sqf_list, dmp_sqf_list_include, dup_gff_list, dmp_gff_list)
+    dup_sqf_p, dmp_sqf_p, dmp_norm, dup_sqf_norm, dmp_sqf_norm,
+    dup_gf_sqf_part, dmp_gf_sqf_part, dup_sqf_part, dmp_sqf_part,
+    dup_gf_sqf_list, dmp_gf_sqf_list, dup_sqf_list, dup_sqf_list_include,
+    dmp_sqf_list, dmp_sqf_list_include, dup_gff_list, dmp_gff_list)
 
 from sympy.polys.galoistools import (
     gf_degree, gf_LC, gf_TC, gf_strip, gf_from_dict,
@@ -222,12 +238,13 @@ from sympy.polys.galoistools import (
 from sympy.utilities import public
 
 @public
-class IPolys(object):
-    symbols = None
-    ngens = None
-    domain = None
-    order = None
-    gens = None
+class IPolys:
+
+    gens: tuple[PolyElement, ...]
+    symbols: tuple[Expr, ...]
+    ngens: int
+    domain: Domain
+    order: MonomialOrder
 
     def drop(self, gen):
         pass
@@ -408,6 +425,11 @@ class IPolys(object):
     def dmp_l1_norm(self, f):
         return dmp_l1_norm(self.to_dense(f), self.ngens-1, self.domain)
 
+    def dup_l2_norm_squared(self, f):
+        return dup_l2_norm_squared(self.to_dense(f), self.domain)
+    def dmp_l2_norm_squared(self, f):
+        return dmp_l2_norm_squared(self.to_dense(f), self.ngens-1, self.domain)
+
     def dup_expand(self, polys):
         return self.from_dense(dup_expand(list(map(self.to_dense, polys)), self.domain))
     def dmp_expand(self, polys):
@@ -505,6 +527,8 @@ class IPolys(object):
         return self.from_dense(dup_scale(self.to_dense(f), a, self.domain))
     def dup_shift(self, f, a):
         return self.from_dense(dup_shift(self.to_dense(f), a, self.domain))
+    def dmp_shift(self, f, a):
+        return self.from_dense(dmp_shift(self.to_dense(f), a, self.ngens-1, self.domain))
     def dup_transform(self, f, p, q):
         return self.from_dense(dup_transform(self.to_dense(f), self.to_dense(p), self.to_dense(q), self.domain))
 
@@ -811,6 +835,20 @@ class IPolys(object):
         coeff, factors = dmp_zz_factor(self.to_dense(f), self.ngens-1, self.domain)
         return (coeff, [ (self.from_dense(g), k) for g, k in factors ])
 
+    def dup_qq_i_factor(self, f):
+        coeff, factors = dup_qq_i_factor(self.to_dense(f), self.domain)
+        return (coeff, [ (self.from_dense(g), k) for g, k in factors ])
+    def dmp_qq_i_factor(self, f):
+        coeff, factors = dmp_qq_i_factor(self.to_dense(f), self.ngens-1, self.domain)
+        return (coeff, [ (self.from_dense(g), k) for g, k in factors ])
+
+    def dup_zz_i_factor(self, f):
+        coeff, factors = dup_zz_i_factor(self.to_dense(f), self.domain)
+        return (coeff, [ (self.from_dense(g), k) for g, k in factors ])
+    def dmp_zz_i_factor(self, f):
+        coeff, factors = dmp_zz_i_factor(self.to_dense(f), self.ngens-1, self.domain)
+        return (coeff, [ (self.from_dense(g), k) for g, k in factors ])
+
     def dup_ext_factor(self, f):
         coeff, factors = dup_ext_factor(self.to_dense(f), self.domain)
         return (coeff, [ (self.from_dense(g), k) for g, k in factors ])
@@ -852,6 +890,10 @@ class IPolys(object):
         return dup_sqf_p(self.to_dense(f), self.domain)
     def dmp_sqf_p(self, f):
         return dmp_sqf_p(self.to_dense(f), self.ngens-1, self.domain)
+
+    def dmp_norm(self, f):
+        n = dmp_norm(self.to_dense(f), self.ngens-1, self.domain)
+        return self.to_ground().from_dense(n)
 
     def dup_sqf_norm(self, f):
         s, F, R = dup_sqf_norm(self.to_dense(f), self.domain)
@@ -1072,7 +1114,7 @@ class IPolys(object):
     def gf_sqf_part(self, f):
         return self.from_gf_dense(gf_sqf_part(self.to_gf_dense(f), self.domain.mod, self.domain.dom))
     def gf_sqf_list(self, f, all=False):
-        coeff, factors = gf_sqf_part(self.to_gf_dense(f), self.domain.mod, self.domain.dom, all=all)
+        coeff, factors = gf_sqf_part(self.to_gf_dense(f), self.domain.mod, self.domain.dom)
         return coeff, [ (self.from_gf_dense(g), k) for g, k in factors ]
 
     def gf_Qmatrix(self, f):

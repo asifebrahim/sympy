@@ -1,13 +1,14 @@
 """Implementation of :class:`Field` class. """
 
-from __future__ import print_function, division
 
+from sympy.polys.domains.domain import Ef
 from sympy.polys.domains.ring import Ring
 from sympy.polys.polyerrors import NotReversible, DomainError
 from sympy.utilities import public
 
+
 @public
-class Field(Ring):
+class Field(Ring[Ef]):
     """Represents a field domain. """
 
     is_Field = True
@@ -22,11 +23,11 @@ class Field(Ring):
         return self
 
     def exquo(self, a, b):
-        """Exact quotient of ``a`` and ``b``, implies ``__div__``.  """
+        """Exact quotient of ``a`` and ``b``, implies ``__truediv__``.  """
         return a / b
 
     def quo(self, a, b):
-        """Quotient of ``a`` and ``b``, implies ``__div__``. """
+        """Quotient of ``a`` and ``b``, implies ``__truediv__``. """
         return a / b
 
     def rem(self, a, b):
@@ -34,7 +35,7 @@ class Field(Ring):
         return self.zero
 
     def div(self, a, b):
-        """Division of ``a`` and ``b``, implies ``__div__``. """
+        """Division of ``a`` and ``b``, implies ``__truediv__``. """
         return a / b, self.zero
 
     def gcd(self, a, b):
@@ -43,6 +44,9 @@ class Field(Ring):
 
         This definition of GCD over fields allows to clear denominators
         in `primitive()`.
+
+        Examples
+        ========
 
         >>> from sympy.polys.domains import QQ
         >>> from sympy import S, gcd, primitive
@@ -65,6 +69,20 @@ class Field(Ring):
         q = ring.lcm(self.denom(a), self.denom(b))
 
         return self.convert(p, ring)/q
+
+    def gcdex(self, a, b):
+        """
+        Returns x, y, g such that a * x + b * y == g == gcd(a, b)
+        """
+        d = self.gcd(a, b)
+
+        if a == self.zero:
+            if b == self.zero:
+                return self.zero, self.one, self.zero
+            else:
+                return self.zero, d/b, d
+        else:
+            return d/a, self.zero, d
 
     def lcm(self, a, b):
         """
@@ -96,3 +114,7 @@ class Field(Ring):
             return 1/a
         else:
             raise NotReversible('zero is not reversible')
+
+    def is_unit(self, a):
+        """Return true if ``a`` is a invertible"""
+        return bool(a)
