@@ -881,10 +881,14 @@ class coth(HyperbolicFunction):
             if arg.is_Add:
                 x, m = _peeloff_ipi(arg)
                 if m:
+<<<<<<< HEAD
+                    cothm = coth(m)
+=======
                     cothm = coth(m*pi*I)
+>>>>>>> master
                     if cothm is S.ComplexInfinity:
                         return coth(x)
-                    else: # cothm == 0
+                    else:  # cothm == 0
                         return tanh(x)
 
             if arg.is_zero:
