@@ -16,7 +16,13 @@ from .sorting import default_sort_key, ordered
 from .sympify import _sympify, sympify, _sympy_converter, SympifyError
 from sympy.core.kind import Kind
 from sympy.utilities.iterables import iterable
+<<<<<<< HEAD
+
+import collections
+from collections.abc import MutableSet
+=======
 from sympy.utilities.misc import as_int
+>>>>>>> master
 
 
 class Tuple(Basic):
@@ -330,12 +336,15 @@ class Dict(Basic):
             return self == Dict(other)
         return super().__eq__(other)
 
+<<<<<<< HEAD
+=======
     def __hash__(self):
         return Basic.__hash__(self)
 
 # this handles dict, defaultdict, OrderedDict
 _sympy_converter[dict] = lambda d: Dict(*d.items())
 
+>>>>>>> master
 class OrderedSet(MutableSet):
     def __init__(self, iterable=None):
         if iterable:

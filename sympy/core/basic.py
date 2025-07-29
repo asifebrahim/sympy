@@ -1,5 +1,12 @@
 """Base class for all the objects in SymPy"""
+<<<<<<< HEAD
+from __future__ import print_function, division
+from collections import defaultdict
+from collections.abc import Mapping
+from itertools import chain
+=======
 from __future__ import annotations
+>>>>>>> master
 
 from collections import Counter
 from collections.abc import Mapping, Iterable

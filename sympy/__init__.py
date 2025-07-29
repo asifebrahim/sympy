@@ -257,8 +257,23 @@ doctest = lazy_function('sympy.testing.runtests', 'doctest')
 # from combinatorics import *
 # This module is slow to import:
 #from physics import units
+<<<<<<< HEAD
+# plotting relies on deprecated collections APIs on newer Python versions
+# so import it lazily to avoid ImportError during basic usage
+try:
+    from .plotting import plot, textplot, plot_backends, plot_implicit
+except Exception:
+    pass
+from .printing import pretty, pretty_print, pprint, pprint_use_unicode, \
+    pprint_try_use_unicode, print_gtk, print_tree, pager_print, TableForm
+from .printing import rcode, ccode, fcode, jscode, julia_code, mathematica_code, \
+    octave_code, latex, preview, rust_code, mathml, glsl_code, cxxcode
+from .printing import python, print_python, srepr, sstr, sstrrepr
+from .interactive import init_session, init_printing
+=======
 from .plotting import plot, textplot, plot_backends, plot_implicit, plot_parametric
 from .interactive import init_session, init_printing, interactive_traversal
+>>>>>>> master
 
 evalf._create_evalf_table()
 
