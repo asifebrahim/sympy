@@ -1,12 +1,9 @@
 """Tools for manipulation of expressions using paths. """
 
-from __future__ import print_function, division
-from sympy.core.compatibility import range
-
 from sympy.core import Basic
 
 
-class EPath(object):
+class EPath:
     r"""
     Manipulate expressions using paths.
 
@@ -27,7 +24,7 @@ class EPath(object):
 
     """
 
-    __slots__ = ["_path", "_epath"]
+    __slots__ = ("_path", "_epath")
 
     def __new__(cls, path):
         """Construct new EPath. """
@@ -55,7 +52,7 @@ class EPath(object):
             index = 0
 
             for c in selector:
-                if c.isalnum() or c == '_' or c == '|' or c == '?':
+                if c.isalnum() or c in ('_', '|', '?'):
                     index += 1
                 else:
                     break
@@ -128,13 +125,9 @@ class EPath(object):
         else:
             return expr.args
 
-    def _hasattrs(self, expr, attrs):
+    def _hasattrs(self, expr, attrs) -> bool:
         """Check if ``expr`` has any of ``attrs``. """
-        for attr in attrs:
-            if not hasattr(expr, attr):
-                return False
-
-        return True
+        return all(hasattr(expr, attr) for attr in attrs)
 
     def _hastypes(self, expr, types):
         """Check if ``expr`` is any of ``types``. """
@@ -198,7 +191,7 @@ class EPath(object):
                 args = list(args)
 
                 if span is not None:
-                    if type(span) == slice:
+                    if isinstance(span, slice):
                         indices = range(*span.indices(len(args)))
                     else:
                         indices = [span]
@@ -265,7 +258,7 @@ class EPath(object):
                     return
 
                 if span is not None:
-                    if type(span) == slice:
+                    if isinstance(span, slice):
                         args = args[span]
                     else:
                         try:
@@ -284,6 +277,9 @@ class EPath(object):
 def epath(path, expr=None, func=None, args=None, kwargs=None):
     r"""
     Manipulate parts of an expression selected by a path.
+
+    Explanation
+    ===========
 
     This function allows to manipulate large nested expressions in single
     line of code, utilizing techniques to those applied in XML processing
@@ -304,9 +300,9 @@ def epath(path, expr=None, func=None, args=None, kwargs=None):
     * select slice: ``/[0]`` or ``/[1:5]`` or ``/[1:5:2]``
           Supports standard Python's slice syntax.
     * select by type: ``/list`` or ``/list|tuple``
-          Emulates :func:`isinstance`.
+          Emulates ``isinstance()``.
     * select by attribute: ``/__iter__?``
-          Emulates :func:`hasattr`.
+          Emulates ``hasattr()``.
 
     Parameters
     ==========

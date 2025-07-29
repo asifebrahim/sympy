@@ -1,9 +1,24 @@
 """Advanced tools for dense recursive polynomials in ``K[x]`` or ``K[X]``. """
 
-from __future__ import print_function, division
+from __future__ import annotations
 
+from sympy.polys.domains.domain import Domain, Er
+from sympy.polys.densearith import (
+    dup_add_term, dmp_add_term,
+    dup_lshift, dup_rshift,
+    dup_add, dmp_add,
+    dup_sub, dmp_sub,
+    dup_mul, dmp_mul, dup_series_mul,
+    dup_sqr,
+    dup_div,
+    dup_series_pow,
+    dup_rem, dmp_rem,
+    dup_mul_ground, dmp_mul_ground,
+    dup_quo_ground, dmp_quo_ground,
+    dup_exquo_ground, dmp_exquo_ground,
+)
 from sympy.polys.densebasic import (
-    dup_strip, dmp_strip,
+    dup, dup_strip, dmp_strip, dup_truncate,
     dup_convert, dmp_convert,
     dup_degree, dmp_degree,
     dmp_to_dict,
@@ -13,33 +28,18 @@ from sympy.polys.densebasic import (
     dmp_zero, dmp_ground,
     dmp_zero_p,
     dup_to_raw_dict, dup_from_raw_dict,
-    dmp_zeros
+    dmp_zeros,
+    dmp_include,
+    dup_nth,
+    dup_normal,
 )
-
-from sympy.polys.densearith import (
-    dup_add_term, dmp_add_term,
-    dup_lshift,
-    dup_add, dmp_add,
-    dup_sub, dmp_sub,
-    dup_mul, dmp_mul,
-    dup_sqr,
-    dup_div,
-    dup_rem, dmp_rem,
-    dmp_expand,
-    dup_mul_ground, dmp_mul_ground,
-    dup_quo_ground, dmp_quo_ground,
-    dup_exquo_ground, dmp_exquo_ground,
-)
-
 from sympy.polys.polyerrors import (
     MultivariatePolynomialError,
     DomainError
 )
 
-from sympy.utilities import variations
+from math import ceil as _ceil, log2 as _log2, sqrt
 
-from math import ceil as _ceil, log as _log
-from sympy.core.compatibility import range
 
 def dup_integrate(f, m, K):
     """
@@ -279,7 +279,7 @@ def dup_eval(f, a, K):
 
     """
     if not a:
-        return dup_TC(f, K)
+        return K.convert(dup_TC(f, K))
 
     result = K.zero
 
@@ -458,6 +458,10 @@ def dup_trunc(f, p, K):
                 g.append(c - p)
             else:
                 g.append(c)
+    elif K.is_FiniteField:
+        # XXX: python-flint's nmod does not support %
+        pi = int(p)
+        g = [ K(int(c) % pi) for c in f ]
     else:
         g = [ c % p for c in f ]
 
@@ -783,7 +787,7 @@ def dmp_ground_extract(f, g, u, K):
 
 def dup_real_imag(f, K):
     """
-    Return bivariate polynomials ``f1`` and ``f2``, such that ``f = f1 + f2*I``.
+    Find ``f1`` and ``f2``, such that ``f(x+I*y) = f1(x,y) + f2(x,y)*I``.
 
     Examples
     ========
@@ -793,6 +797,11 @@ def dup_real_imag(f, K):
 
     >>> R.dup_real_imag(x**3 + x**2 + x + 1)
     (x**3 + x**2 - 3*x*y**2 + x - y**2 + 1, 3*x**2*y + 2*x*y - y**3 + y)
+
+    >>> from sympy.abc import x, y, z
+    >>> from sympy import I
+    >>> (z**3 + z**2 + z + 1).subs(z, x+I*y).expand().collect(I)
+    x**3 + x**2 - 3*x*y**2 + x - y**2 + I*(3*x**2*y + 2*x*y - y**3 + y) + 1
 
     """
     if not K.is_ZZ and not K.is_QQ:
@@ -895,7 +904,50 @@ def dup_shift(f, a, K):
     return f
 
 
-def dup_transform(f, p, q, K):
+def dmp_shift(f, a, u, K):
+    """
+    Evaluate efficiently Taylor shift ``f(X + A)`` in ``K[X]``.
+
+    Examples
+    ========
+
+    >>> from sympy import symbols, ring, ZZ
+    >>> x, y = symbols('x y')
+    >>> R, _, _ = ring([x, y], ZZ)
+
+    >>> p = x**2*y + 2*x*y + 3*x + 4*y + 5
+
+    >>> R.dmp_shift(R(p), [ZZ(1), ZZ(2)])
+    x**2*y + 2*x**2 + 4*x*y + 11*x + 7*y + 22
+
+    >>> p.subs({x: x + 1, y: y + 2}).expand()
+    x**2*y + 2*x**2 + 4*x*y + 11*x + 7*y + 22
+    """
+    if not u:
+        return dup_shift(f, a[0], K)
+
+    if dmp_zero_p(f, u):
+        return f
+
+    a0, a1 = a[0], a[1:]
+
+    if any(a1):
+        f = [ dmp_shift(c, a1, u-1, K) for c in f ]
+    else:
+        f = list(f)
+
+    if a0:
+        n = len(f) - 1
+
+        for i in range(n, 0, -1):
+            for j in range(0, i):
+                afj = dmp_mul_ground(f[j], a0, u-1, K)
+                f[j + 1] = dmp_add(f[j + 1], afj, u-1, K)
+
+    return dmp_strip(f, u)
+
+
+def dup_transform(f: dup[Er], p: dup[Er], q: dup[Er], K: Domain[Er]) -> dup[Er]:
     """
     Evaluate functional transformation ``q**n * f(p/q)`` in ``K[x]``.
 
@@ -982,6 +1034,55 @@ def dmp_compose(f, g, u, K):
         h = dmp_add_term(h, c, 0, u, K)
 
     return h
+
+
+def _dup_series_compose(f, g, n, K):
+    """
+    Helper function for dup_series_compose using divide and conquer.
+    """
+    if len(f) == 1:
+        return [f[0]]
+
+    m = len(f) // 2
+    f_high = f[:-m]
+    f_low = f[-m:]
+
+    comp0 = _dup_series_compose(f_low, g, n, K)
+    comp1 = _dup_series_compose(f_high, g, n, K)
+
+    g_power = dup_series_pow(g, m, n, K)
+    high_term = dup_series_mul(comp1, g_power, n, K)
+
+    result = dup_add(high_term, comp0, K)
+    return dup_truncate(result, n, K)
+
+
+def dup_series_compose(f, g, n, K):
+    """
+    Compute ``f(g(x))`` mod ``x**n`` using divide and conquer composition.
+
+    Examples
+    ========
+    >>> from sympy import ZZ
+    >>> from sympy.polys.densetools import dup_series_compose
+    >>> from sympy.polys.densebasic import dup_from_list, dup_print
+    >>> f = dup_from_list([1, 1, 1], ZZ)
+    >>> g = dup_from_list([1, 1], ZZ)
+    >>> comp = dup_series_compose(f, g, 3, ZZ)
+    >>> dup_print(comp, 'x')
+    x**2 + 3*x + 3
+
+    """
+    f = dup_truncate(f, n, K)
+    g = dup_truncate(g, n, K)
+
+    if len(g) <= 1:
+        return dup_strip([dup_eval(f, dup_LC(g, K), K)])
+
+    if not f:
+        return []
+
+    return _dup_series_compose(f, g, n, K)
 
 
 def _dup_right_decompose(f, s, K):
@@ -1080,7 +1181,7 @@ def dup_decompose(f, K):
     References
     ==========
 
-    1. [Kozen89]_
+    .. [1] [Kozen89]_
 
     """
     F = []
@@ -1095,6 +1196,65 @@ def dup_decompose(f, K):
             break
 
     return [f] + F
+
+
+def dmp_alg_inject(f, u, K):
+    """
+    Convert polynomial from ``K(a)[X]`` to ``K[a,X]``.
+
+    Examples
+    ========
+
+    >>> from sympy.polys.densetools import dmp_alg_inject
+    >>> from sympy import QQ, sqrt
+
+    >>> K = QQ.algebraic_field(sqrt(2))
+
+    >>> p = [K.from_sympy(sqrt(2)), K.zero, K.one]
+    >>> P, lev, dom = dmp_alg_inject(p, 0, K)
+    >>> P
+    [[1, 0, 0], [1]]
+    >>> lev
+    1
+    >>> dom
+    QQ
+
+    """
+    if K.is_GaussianRing or K.is_GaussianField:
+        return _dmp_alg_inject_gaussian(f, u, K)
+    elif K.is_Algebraic:
+        return _dmp_alg_inject_alg(f, u, K)
+    else:
+        raise DomainError('computation can be done only in an algebraic domain')
+
+
+def _dmp_alg_inject_gaussian(f, u, K):
+    """Helper function for :func:`dmp_alg_inject`."""
+    f, h = dmp_to_dict(f, u), {}
+
+    for f_monom, g in f.items():
+        x, y = g.x, g.y
+        if x:
+            h[(0,) + f_monom] = x
+        if y:
+            h[(1,) + f_monom] = y
+
+    F = dmp_from_dict(h, u + 1, K.dom)
+
+    return F, u + 1, K.dom
+
+
+def _dmp_alg_inject_alg(f, u, K):
+    """Helper function for :func:`dmp_alg_inject`."""
+    f, h = dmp_to_dict(f, u), {}
+
+    for f_monom, g in f.items():
+        for g_monom, c in g.to_dict().items():
+            h[g_monom + f_monom] = c
+
+    F = dmp_from_dict(h, u + 1, K.dom)
+
+    return F, u + 1, K.dom
 
 
 def dmp_lift(f, u, K):
@@ -1113,31 +1273,18 @@ def dmp_lift(f, u, K):
     >>> f = x**2 + K([QQ(1), QQ(0)])*x + K([QQ(2), QQ(0)])
 
     >>> R.dmp_lift(f)
-    x**8 + 2*x**6 + 9*x**4 - 8*x**2 + 16
+    x**4 + x**2 + 4*x + 4
 
     """
-    if not K.is_Algebraic:
-        raise DomainError(
-            'computation can be done only in an algebraic domain')
+    # Circular import. Probably dmp_lift should be moved to euclidtools
+    from .euclidtools import dmp_resultant
 
-    F, monoms, polys = dmp_to_dict(f, u), [], []
+    F, v, K2 = dmp_alg_inject(f, u, K)
 
-    for monom, coeff in F.items():
-        if not coeff.is_ground:
-            monoms.append(monom)
+    p_a = K.mod.to_list()
+    P_A = dmp_include(p_a, list(range(1, v + 1)), 0, K2)
 
-    perms = variations([-1, 1], len(monoms), repetition=True)
-
-    for perm in perms:
-        G = dict(F)
-
-        for sign, monom in zip(perm, monoms):
-            if sign == -1:
-                G[monom] = -G[monom]
-
-        polys.append(dmp_from_dict(G, u, K))
-
-    return dmp_convert(dmp_expand(polys, u, K), u, K, K.dom)
+    return dmp_resultant(F, P_A, v, K2)
 
 
 def dup_sign_variations(f, K):
@@ -1154,10 +1301,39 @@ def dup_sign_variations(f, K):
     2
 
     """
+    def is_negative_sympy(a):
+        if not a:
+            # XXX: requires zero equivalence testing in the domain
+            return False
+        else:
+            # XXX: This is inefficient. It should not be necessary to use a
+            # symbolic expression here at least for algebraic fields. If the
+            # domain elements can be numerically evaluated to real values with
+            # precision then this should work. We first need to rule out zero
+            # elements though.
+            return bool(K.to_sympy(a) < 0)
+
+    # XXX: There should be a way to check for real numeric domains and
+    # Domain.is_negative should be fixed to handle all real numeric domains.
+    # It should not be necessary to special case all these different domains
+    # in this otherwise generic function.
+    if K.is_ZZ or K.is_QQ or K.is_RR:
+        is_negative = K.is_negative
+    elif K.is_AlgebraicField and K.ext.is_comparable:
+        is_negative = is_negative_sympy
+    elif ((K.is_PolynomialRing or K.is_FractionField) and len(K.symbols) == 1 and
+          (K.dom.is_ZZ or K.dom.is_QQ or K.is_AlgebraicField) and
+          K.symbols[0].is_transcendental and K.symbols[0].is_comparable):
+        # We can handle a polynomial ring like QQ[E] if there is a single
+        # transcendental generator because then zero equivalence is assured.
+        is_negative = is_negative_sympy
+    else:
+        raise DomainError("sign variation counting not supported over %s" % K)
+
     prev, k = K.zero, 0
 
     for coeff in f:
-        if K.is_negative(coeff*prev):
+        if is_negative(coeff*prev):
             k += 1
 
         if coeff:
@@ -1195,13 +1371,20 @@ def dup_clear_denoms(f, K0, K1=None, convert=False):
     for c in f:
         common = K1.lcm(common, K0.denom(c))
 
-    if not K1.is_one(common):
-        f = dup_mul_ground(f, common, K0)
+    if K1.is_one(common):
+        if not convert:
+            return common, f
+        else:
+            return common, dup_convert(f, K0, K1)
+
+    # Use quo rather than exquo to handle inexact domains by discarding the
+    # remainder.
+    f = [K0.numer(c)*K1.quo(common, K0.denom(c)) for c in f]
 
     if not convert:
-        return common, f
+        return common, dup_convert(f, K1, K0)
     else:
-        return common, dup_convert(f, K0, K1)
+        return common, f
 
 
 def _rec_clear_denoms(g, v, K0, K1):
@@ -1281,7 +1464,7 @@ def dup_revert(f, n, K):
     g = [K.revert(dup_TC(f, K))]
     h = [K.one, K.zero, K.zero]
 
-    N = int(_ceil(_log(n, 2)))
+    N = int(_ceil(_log2(n)))
 
     for i in range(1, N + 1):
         a = dup_mul_ground(g, K(2), K)
@@ -1307,3 +1490,111 @@ def dmp_revert(f, g, u, K):
         return dup_revert(f, g, K)
     else:
         raise MultivariatePolynomialError(f, g)
+
+
+def _dup_series_reversion_small(f, n, K):
+    """
+    Helper function for :func:`dup_series_reversion`.
+    ``n`` should be less than or equal to 4.
+    """
+    if n < 1 or n > 4:
+        raise ValueError("Only n <= 4 supported")
+
+    f = dup_truncate(f, n, K)
+    f = [K.zero] * (4 - len(f)) + f
+    a, b, c, d = f
+
+    cinv = K.revert(c)
+    g = [K.zero] * n
+
+    if n >= 2:
+        g[-2] = cinv
+
+    if n >= 3:
+        g[-3] = -b * cinv ** 3
+
+    if n >= 4:
+        g[-4] = (2 * b ** 2 - a * c) * cinv ** 5
+
+    return dup_normal(g, K)
+
+
+def dup_series_reversion(f, n, K):
+    r"""
+    Computes the compositional inverse of f using fast lagrange inversion.
+    The result is computed modulo x**n.
+
+    Examples
+    ========
+    >>> from sympy.polys import QQ
+    >>> from sympy.polys.densetools import dup_series_reversion
+    >>> from sympy.polys.densebasic import dup_from_list, dup_print
+    >>> f = dup_from_list([QQ(1, 3), QQ(1, 4), QQ(1, 5), QQ(1, 6), QQ(1, 7), 0], QQ)
+    >>> rev = dup_series_reversion(f, 7, QQ)
+    >>> dup_print(rev, 'x')
+    5528444159/32400*x**6 + 467419477/16200*x**5 - 789929/216*x**4 + 40817/90*x**3 - 343/6*x**2 + 7*x
+
+    References
+    ==========
+
+    .. [1] Johansson, F. A fast algorithm for reversion of power series.
+        https://arxiv.org/abs/1403.4676
+
+    """
+    if not f:
+        return []
+
+    if f[-1] != K.zero:
+        raise ValueError("f must have zero constant term")
+    if n<=4:
+        return _dup_series_reversion_small(f, n, K)
+
+    # Step 0: h = x / f mod x**(n-1)
+    f1 = dup_rshift(f, 1, K)
+    f1_inv = dup_revert(f1, n, K)
+    h = dup_truncate(f1_inv, n, K)
+
+    m = _ceil(sqrt(n - 1))
+
+    # Precompute powers of h: h, h^2, ..., h^m mod x**(n-1)
+    H = [h]
+    for _ in range(1, m):
+        h_prev = H[-1]
+        h_next = dup_series_mul(h_prev, h, n, K)
+        H.append(h_next)
+
+    # Initialize g with n zeros
+    g = [K.zero] * n
+
+    # First block: compute g[i] for i = 1 to m - 1
+    for i in range(1, m):
+        coeff = dup_nth(H[i-1], i - 1, K)  # coeff = [x**(i-1)](h^i)
+        # (1/i) * [x**(i-1)](h^i)
+        g[-(i + 1)] = K.quo(coeff, K(i))
+
+    # t = h^m
+    t = H[m - 1]
+
+    # Loop over blocks of size m
+    for i in range(m, n, m):
+        # g[i] = (1 / i) * [x**(i-1)](t)
+        coeff = dup_nth(t, i - 1, K)
+        g[-(i + 1)] = K.quo(coeff, K(i))
+
+        # Now fill g[i + j] for 1 <= j < m
+        for j in range(1, m):
+            if i + j >= n:
+                break
+
+            s = K.zero
+            for k in range(0, i + j):
+                c1 = dup_nth(t, k, K)
+                c2 = dup_nth(H[j-1], i + j - k - 1, K)
+                s += c1 * c2
+
+            g[-(i + j + 1)] = K.quo(s, K(i + j))
+
+        # t = t * h^m mod x**(n-1)
+        t = dup_series_mul(t, H[m - 1], n, K)
+
+    return dup_strip(g)
