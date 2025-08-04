@@ -96,3 +96,22 @@ def test_NumPyPrinter_print_seq():
     n = NumPyPrinter()
 
     assert n._print_seq(range(2)) == '(0, 1,)'
+
+
+def test_pycode_Indexed():
+    from sympy.tensor import IndexedBase, Idx
+    from sympy import symbols
+    n, m, o = symbols('n m o', integer=True)
+    i, j, k = Idx('i', n), Idx('j', m), Idx('k', o)
+
+    p = PythonCodePrinter()
+
+    x = IndexedBase('x')[j]
+    A = IndexedBase('A')[i, j]
+    B = IndexedBase('B')[i, j, k]
+
+    assert p._print_Indexed(x) == 'x[j]'
+    assert p._print_Indexed(A) == 'A[i, j]'
+    assert p._print_Indexed(B) == 'B[i, j, k]'
+
+    assert pycode(x) == 'x[j]'

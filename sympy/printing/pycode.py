@@ -343,6 +343,13 @@ class AbstractPythonCodePrinter(CodePrinter):
         else:
             return self._print(strm.name)
 
+    def _print_Indexed(self, expr):
+        inds = [self._print(i) for i in expr.indices]
+        return "%s[%s]" % (self._print(expr.base.label), ", ".join(inds))
+
+    def _print_Idx(self, expr):
+        return self._print(expr.label)
+
     def _print_NoneToken(self, arg):
         return 'None'
 
