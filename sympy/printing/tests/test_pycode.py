@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from sympy.codegen import Assignment
 from sympy.codegen.ast import none
 from sympy.core import Expr, Mod, symbols, Eq, Le, Gt, zoo, oo, Rational
+from sympy.tensor import IndexedBase, Idx
 from sympy.core.numbers import pi
 from sympy.functions import acos, Piecewise, sign
 from sympy.logic import And, Or
@@ -96,3 +97,14 @@ def test_NumPyPrinter_print_seq():
     n = NumPyPrinter()
 
     assert n._print_seq(range(2)) == '(0, 1,)'
+
+
+def test_pycode_Indexed():
+    p = IndexedBase('p')
+    assert pycode(p[0]) == 'p[0]'
+    i, j = symbols('i j', integer=True)
+    A = IndexedBase('A')
+    assert pycode(p[i]) == 'p[i]'
+    assert pycode(A[i, j]) == 'A[i, j]'
+    k = Idx('k')
+    assert pycode(p[k]) == 'p[k]'
