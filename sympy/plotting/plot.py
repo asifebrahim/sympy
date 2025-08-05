@@ -25,9 +25,13 @@ every time you call ``show()`` and the old one is left to the garbage collector.
 from __future__ import print_function, division
 
 import inspect
-from collections import Callable
 import warnings
 import sys
+
+try:
+    from collections.abc import Callable
+except ImportError:  # pragma: no cover
+    from collections import Callable
 
 from sympy import sympify, Expr, Tuple, Dummy, Symbol
 from sympy.external import import_module

@@ -2196,6 +2196,13 @@ def test_col_insert():
         assert flatten(zeros(3).col_insert(i, c4).row(0).tolist()) == l
 
 
+def test_col_insert_nonzero_matrix():
+    M = eye(6)
+    V = 2*ones(6, 2)
+    expected = M[:, :3].row_join(V).row_join(M[:, 3:])
+    assert M.col_insert(3, V) == expected
+
+
 def test_normalized():
     assert Matrix([3, 4]).normalized() == \
         Matrix([Rational(3, 5), Rational(4, 5)])
