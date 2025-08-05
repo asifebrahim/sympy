@@ -8,7 +8,7 @@ from sympy.core.relational import (Relational, Equality, Unequality,
                                    StrictLessThan, Rel, Eq, Lt, Le,
                                    Gt, Ge, Ne)
 from sympy.sets.sets import Interval, FiniteSet
-
+from sympy import ConditionSet
 from itertools import combinations
 
 x, y, z, t = symbols('x,y,z,t')
@@ -401,6 +401,9 @@ def test_univariate_relational_as_set():
         Interval(0, oo, True, True)
 
     assert (x**2 >= 4).as_set() == Interval(-oo, -2) + Interval(2, oo)
+    assert Eq(sin(x), 1).as_set() == ConditionSet(x, Eq(sin(x), 1), S.Reals)
+    assert Eq(x*cos(x) - 3*sin(x), 0).as_set() == ConditionSet(x, Eq(x*cos(x) - 3*sin(x), 0), S.Reals)
+
 
 
 @XFAIL
@@ -1081,3 +1084,5 @@ def test_multivariate_linear_function_simplification():
 
 def test_nonpolymonial_relations():
     assert Eq(cos(x), 0).simplify() == Eq(cos(x), 0)
+
+

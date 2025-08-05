@@ -19,6 +19,7 @@ from sympy.utilities.iterables import sift, ibin
 from sympy.utilities.misc import filldedent
 
 
+
 def as_Boolean(e):
     """Like bool, return the Boolean value of an expression, e,
     which can be any instance of Boolean or bool.
@@ -142,6 +143,7 @@ class Boolean(Basic):
         """
         from sympy.calculus.util import periodicity
         from sympy.core.relational import Relational
+
         free = self.free_symbols
         if len(free) == 1:
             x = free.pop()
@@ -152,11 +154,14 @@ class Boolean(Basic):
                     if s in (S.EmptySet, S.UniversalSet, S.Reals):
                         reps[r] = s.as_relational(x)
                         continue
-                    raise NotImplementedError(filldedent('''
-                        as_set is not implemented for relationals
-                        with periodic solutions
-                        '''))
-            return self.subs(reps)._eval_as_set()
+                    from sympy.sets.conditionset import ConditionSet
+                    return ConditionSet(x,self,S.Reals)
+            try:
+                return self.subs(reps)._eval_as_set()
+            except NotImplementedError:
+                from sympy.sets.conditionset import ConditionSet
+                return ConditionSet(x, self, S.Reals)
+
         else:
             raise NotImplementedError("Sorry, as_set has not yet been"
                                       " implemented for multivariate"
