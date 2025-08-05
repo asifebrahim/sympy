@@ -25,6 +25,26 @@ del mpmath
 
 from sympy.release import __version__
 
+# Compatibility shim for Python 3.10+ where abstract base classes moved to
+# collections.abc but older SymPy modules import them from collections.
+try:
+    import collections as _collections
+    from collections import abc as _abc  # Python >= 3.3
+    for _name in (
+        "Mapping", "MutableMapping",
+        "Iterable", "Iterator",
+        "Sequence", "MutableSequence",
+        "Set", "MutableSet",
+        "Callable", "Hashable",
+        "KeysView", "ValuesView", "ItemsView",
+    ):
+        if not hasattr(_collections, _name) and hasattr(_abc, _name):
+            setattr(_collections, _name, getattr(_abc, _name))
+    del _collections, _abc, _name
+except Exception:
+    # On very old Python versions this block is harmless/no-op
+    pass
+
 if 'dev' in __version__:
     def enable_warnings():
         import warnings
