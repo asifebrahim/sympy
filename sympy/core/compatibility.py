@@ -7,6 +7,16 @@ from __future__ import print_function, division
 
 import operator
 from collections import defaultdict
+import collections as _collections
+try:  # for Python >= 3.3 where abstract base classes moved to collections.abc
+    import collections.abc as _abc
+    for _name in [
+            'Mapping', 'MutableMapping', 'MutableSet', 'MutableSequence',
+            'Sequence', 'Iterable', 'Callable', 'Hashable']:
+        if not hasattr(_collections, _name):
+            setattr(_collections, _name, getattr(_abc, _name))
+except Exception:  # pragma: no cover
+    pass
 from sympy.external import import_module
 
 """

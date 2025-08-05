@@ -12,6 +12,10 @@ import sympy.vector
 from sympy.vector.orienters import (Orienter, AxisOrienter, BodyOrienter,
                                     SpaceOrienter, QuaternionOrienter)
 import collections
+try:
+    from collections.abc import Callable
+except ImportError:
+    from collections import Callable
 
 
 def CoordSysCartesian(*args, **kwargs):
@@ -84,7 +88,7 @@ class CoordSys3D(Basic):
                 else:
                     transformation = Lambda(transformation[0],
                                             transformation[1])
-            elif isinstance(transformation, collections.Callable):
+            elif isinstance(transformation, Callable):
                 x1, x2, x3 = symbols('x1 x2 x3', cls=Dummy)
                 transformation = Lambda((x1, x2, x3),
                                         transformation(x1, x2, x3))

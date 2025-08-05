@@ -268,7 +268,13 @@ class Dict(Basic):
         return tuple(sorted(self.args, key=default_sort_key))
 
 
-class OrderedSet(collections.MutableSet):
+try:
+    from collections.abc import MutableSet
+except ImportError:
+    from collections import MutableSet
+
+
+class OrderedSet(MutableSet):
     def __init__(self, iterable=None):
         if iterable:
             self.map = collections.OrderedDict((item, None) for item in iterable)
